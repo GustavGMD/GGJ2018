@@ -25,7 +25,8 @@ public class PlayerBehaviour : MonoBehaviour {
     public float rotationDirectionChangeMaximumWaitingTime = 1;
 
     public bool autonomous = true;
-    public int blobSize = 1;
+    public Stack<GameObject> capturedPlayersStack;
+    public Stack<char> capturedInputsStack;
     #endregion
 
     #region Private Attributes
@@ -36,6 +37,9 @@ public class PlayerBehaviour : MonoBehaviour {
     // Use this for initialization
     void Start ()
     {
+        capturedPlayersStack = new Stack<GameObject>();
+        capturedInputsStack = new Stack<char>();
+
         _rigidbody2D = GetComponent<Rigidbody2D>();
         _levelBoundaries.y = Camera.main.orthographicSize;
         _levelBoundaries.x = Camera.main.orthographicSize * Camera.main.aspect;
@@ -78,19 +82,19 @@ public class PlayerBehaviour : MonoBehaviour {
 
         //Confere se o Player está no limite do mapa
         //Caso sim, faz ele mover-se na direção oposta
-        if(GetComponent<Transform>().position.x >= _levelBoundaries.x)
+        if(transform.position.x >= _levelBoundaries.x)
         {
             __newVelocity = __newVelocity.magnitude * new Vector2(-1, 0);
         }
-        else if (GetComponent<Transform>().position.x <= -_levelBoundaries.x)
+        else if (transform.position.x <= -_levelBoundaries.x)
         {
             __newVelocity = __newVelocity.magnitude * new Vector2(1, 0);
         }
-        else if(GetComponent<Transform>().position.y >= _levelBoundaries.y)
+        else if(transform.position.y >= _levelBoundaries.y)
         {
             __newVelocity = __newVelocity.magnitude * new Vector2(0, -1);
         }
-        else if (GetComponent<Transform>().position.y <= -_levelBoundaries.y)
+        else if (transform.position.y <= -_levelBoundaries.y)
         {
             __newVelocity = __newVelocity.magnitude * new Vector2(0, 1);
         }
@@ -141,28 +145,79 @@ public class PlayerBehaviour : MonoBehaviour {
     public void LaunchHook()
     {
         //inicia instanciando um Hook e inicializando seus atributos
-        GameObject __tempHook = Instantiate(hookReference, hookPivot.GetComponent<Transform>().position, GetComponent<Transform>().rotation, GetComponent<Transform>());
-        Vector2 __currentRotation = new Vector2(Mathf.Cos(GetComponent<Transform>().eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(GetComponent<Transform>().eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
+        GameObject __tempHook = Instantiate(hookReference, hookPivot.transform.position, transform.rotation, transform);
+        Vector2 __currentRotation = new Vector2(Mathf.Cos(transform.eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(transform.eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
         __tempHook.GetComponent<HookBehaviour>().velocity = __currentRotation;
         __tempHook.GetComponent<HookBehaviour>().maxDistance = 3;
         __tempHook.GetComponent<HookBehaviour>().onFinished += delegate
         {
+            //Adicionar um Cooldown no disparo do Hook e criar uma pool de Hooks a serem usados e reutilizados
             __tempHook.SetActive(false);
         };
         __tempHook.GetComponent<HookBehaviour>().onEnemyCollision += delegate(PlayerBehaviour p_other)
-        {
+        {            
             if (p_other != this)
             {
-                Debug.Log("Entrei em player");
-                p_other.autonomous = false;
-                p_other.GetComponent<Transform>().parent = GetComponent<Transform>();
-                blobSize++;
+                //atingiu um player isolado
+                if (p_other.capturedPlayersStack.Count == 0)
+                {
+                    //Adiciona elementos nas stacks: Referencia ao objeto a ser animado, e referência ao Input q ele usa
+                    capturedPlayersStack.Push(p_other.gameObject);
+                    capturedInputsStack.Push(p_other.actionButton);
+
+                    //Reseta atributos do player capturado
+                    CleanCapturedPlayer(p_other.gameObject);
+                    //p_other.transform.position = transform.position;
+
+                    //adiciona um componente de Tween que será usado para as animações
+                    PotaTween.Create(p_other.gameObject);
+
+                    //Play animations
+                    BlobJoinAnimation(p_other.gameObject);
+                    GrowingAnimation();
+                }
+                //atingiu um Blob
+                else
+                {
+                    //A blob atingida desprende um de seus blobs: chamamos um método nela que retorna o objeto a ser manipulado, e um outro que retorna o input
+                }
             }
         };
     }
-    public void BlobJoinAnimation()
+    public void BlobJoinAnimation(GameObject p_target)
     {
+        p_target.transform.SetParent(transform);
+        PotaTween __pTween = p_target.GetComponent<PotaTween>();
+        __pTween.Reset();
+        __pTween.SetPosition(p_target.transform.localPosition, Vector2.zero, true);
+        __pTween.SetEaseEquation(Ease.Equation.InSine);
+        __pTween.Play();
+    }
 
+    public void GrowingAnimation()
+    {
+        PotaTween pTween = PotaTween.Create(gameObject, 2);
+        pTween.SetScale(transform.localScale, Vector3.one*(capturedPlayersStack.Count+1)*2);
+        pTween.SetEaseEquation(Ease.Equation.OutInElastic);
+        pTween.SetDelay(1);
+        pTween.Play();
+    }
+
+    //public GameObject RemoveParticleFromBlob()
+    //{
+    //
+    //}
+
+    public void CleanCapturedPlayer(GameObject p_captured)
+    {
+        Destroy(p_captured.GetComponent<PlayerBehaviour>());
+        Destroy(p_captured.GetComponent<Rigidbody2D>());
+        Destroy(p_captured.GetComponent<Collider2D>());
+        Transform[] __children = p_captured.transform.GetComponentsInChildren<Transform>();
+        for (int i = 0; i < __children.Length; i++)
+        {
+            if(__children[i].gameObject != p_captured.gameObject) Destroy(__children[i].gameObject);
+        }
     }
 
     #region Utility Methods

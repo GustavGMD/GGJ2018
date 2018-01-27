@@ -20,7 +20,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4759415800894660}
   - component: {fileID: 212428812143651388}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HookSpawnPivot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -39,7 +39,7 @@ GameObject:
   - component: {fileID: 50275067338688696}
   - component: {fileID: 58110644258876538}
   - component: {fileID: 114062164258205296}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -131,6 +131,8 @@ MonoBehaviour:
   rotationAccelerationScale: 180
   maxRotationVelocityValue: 120
   rotationDirectionChangeMaximumWaitingTime: 5
+  autonomous: 1
+  blobSize: 1
 --- !u!212 &212428812143651388
 SpriteRenderer:
   m_ObjectHideFlags: 1
