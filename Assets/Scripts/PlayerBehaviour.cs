@@ -8,8 +8,7 @@ using UnityEngine;
 public class PlayerBehaviour : MonoBehaviour {
 
     #region Public Attributes
-    public GameObject hookPivot;
-    public char actionButton;
+    public List<GameObject> hookPivots;
     public GameObject hookReference;
 
     //A aceleração é definida como uma direção em que se dará o movimento
@@ -25,8 +24,8 @@ public class PlayerBehaviour : MonoBehaviour {
     public float rotationDirectionChangeMaximumWaitingTime = 1;
 
     public bool autonomous = true;
-    public Stack<GameObject> capturedPlayersStack;
-    public Stack<char> capturedInputsStack;
+    public List<GameObject> capturedPlayersStack;
+    public List<char> capturedInputsStack;
     #endregion
 
     #region Private Attributes
@@ -37,8 +36,8 @@ public class PlayerBehaviour : MonoBehaviour {
     // Use this for initialization
     void Start ()
     {
-        capturedPlayersStack = new Stack<GameObject>();
-        capturedInputsStack = new Stack<char>();
+        //capturedPlayersStack = new List<GameObject>();
+        //capturedInputsStack = new List<char>();
 
         _rigidbody2D = GetComponent<Rigidbody2D>();
         _levelBoundaries.y = Camera.main.orthographicSize;
@@ -54,10 +53,17 @@ public class PlayerBehaviour : MonoBehaviour {
 	// Update is called once per frame
 	void Update ()
     {
-        if (Input.GetKeyDown(actionButton.ToString()))
+        //Debug.Log(capturedInputsStack.Count);
+        for (int i = 0; i < capturedInputsStack.Count; i++)
         {
-            LaunchHook();
+            //Debug.Log("Checking " + capturedInputsStack[i]);
+            if (Input.GetKeyDown(capturedInputsStack[i].ToString()))
+            {
+                //Debug.Log("INPUUUT");
+                LaunchHook(i);
+            }
         }
+        
         if (autonomous)
         {
             MovementBehaviour();
@@ -142,13 +148,13 @@ public class PlayerBehaviour : MonoBehaviour {
         //rotationAccelerationValue = -rotationAccelerationValue;
     }
 
-    public void LaunchHook()
+    public void LaunchHook(int p_index)
     {
         //inicia instanciando um Hook e inicializando seus atributos
-        GameObject __tempHook = Instantiate(hookReference, hookPivot.transform.position, transform.rotation, transform);
-        Vector2 __currentRotation = new Vector2(Mathf.Cos(transform.eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(transform.eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
+        GameObject __tempHook = Instantiate(hookReference, hookPivots[p_index].transform.position, transform.rotation);
+        Vector2 __currentRotation = new Vector2(Mathf.Cos(hookPivots[p_index].transform.parent.eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(hookPivots[p_index].transform.parent.eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
         __tempHook.GetComponent<HookBehaviour>().velocity = __currentRotation;
-        __tempHook.GetComponent<HookBehaviour>().maxDistance = 3;
+        __tempHook.GetComponent<HookBehaviour>().maxDistance = 10;
         __tempHook.GetComponent<HookBehaviour>().onFinished += delegate
         {
             //Adicionar um Cooldown no disparo do Hook e criar uma pool de Hooks a serem usados e reutilizados
@@ -159,11 +165,12 @@ public class PlayerBehaviour : MonoBehaviour {
             if (p_other != this)
             {
                 //atingiu um player isolado
-                if (p_other.capturedPlayersStack.Count == 0)
+                if (p_other.capturedPlayersStack.Count == 1)
                 {
                     //Adiciona elementos nas stacks: Referencia ao objeto a ser animado, e referência ao Input q ele usa
-                    capturedPlayersStack.Push(p_other.gameObject);
-                    capturedInputsStack.Push(p_other.actionButton);
+                    capturedPlayersStack.Add(p_other.capturedPlayersStack[0]);
+                    capturedInputsStack.Add(p_other.capturedInputsStack[0]);
+                    hookPivots.Add(p_other.hookPivots[0]);
 
                     //Reseta atributos do player capturado
                     CleanCapturedPlayer(p_other.gameObject);
@@ -173,7 +180,7 @@ public class PlayerBehaviour : MonoBehaviour {
                     PotaTween.Create(p_other.gameObject);
 
                     //Play animations
-                    BlobJoinAnimation(p_other.gameObject);
+                    BlobJoinAnimation(p_other.gameObject, p_other.transform.position);
                     GrowingAnimation(1f);
                 }
                 //atingiu um Blob
@@ -183,11 +190,17 @@ public class PlayerBehaviour : MonoBehaviour {
                     //Pega a referência das coisas do outro
                     GameObject __tempObject = p_other.RemoveParticleFromBlob();
                     char __tempInput = p_other.RemoveInputFromBlob();
-                    capturedPlayersStack.Push(__tempObject);
-                    capturedInputsStack.Push(__tempInput);
+                    GameObject __tempPivot = p_other.RemoveHookPivotFromBlob();
+                    capturedPlayersStack.Add(__tempObject);
+                    capturedInputsStack.Add(__tempInput);
+                    hookPivots.Add(__tempPivot);
+                    __tempPivot.transform.parent.SetParent(transform);
+                    //__tempObject.transform.position = p_other.transform.position;
+                    //Debug.Log(p_other.transform.position);
+                    //__tempPivot.transform.parent.position = transform.position;
 
                     //chama as animações
-                    BlobJoinAnimation(__tempObject);
+                    BlobJoinAnimation(__tempObject, p_other.transform.position);
                     GrowingAnimation(1);
                     p_other.GrowingAnimation(0);
                 }
@@ -197,22 +210,58 @@ public class PlayerBehaviour : MonoBehaviour {
             }            
         };
     }
-    public void BlobJoinAnimation(GameObject p_target)
+    public void UpdateHookPivots()
+    {
+        float __archSize = (2 * Mathf.PI) / hookPivots.Count;
+        for (int i = 0; i < hookPivots.Count; i++)
+        {
+            //atualiza o parent do pivot 
+            hookPivots[i].transform.parent.parent = gameObject.transform;
+            hookPivots[i].transform.parent.position = transform.position;
+            hookPivots[i].transform.localScale = Vector3.one/2;
+            hookPivots[i].transform.parent.localScale = Vector3.one;
+
+            //calcula o novo ângulo
+            float __targetAngle = i * __archSize;
+            int __num = i;
+
+            //coloca tween nos pivots, ou confere se eles já têm
+            if (hookPivots[i].GetComponent<PotaTween>() == null) PotaTween.Create(hookPivots[i].gameObject);
+            PotaTween __pTween = hookPivots[i].GetComponent<PotaTween>();
+            __pTween.Reset();
+            __pTween.SetFloat(hookPivots[i].transform.eulerAngles.z, __targetAngle * Mathf.Rad2Deg);
+            __pTween.UpdateCallback(delegate()
+            {
+                hookPivots[__num].transform.parent.eulerAngles = new Vector3(0, 0, __pTween.Float.Value);
+            });
+
+            //ativa o tween pra ir pra posição
+            __pTween.Play();
+        }
+    }
+
+    public void BlobJoinAnimation(GameObject p_target, Vector3 p_from)
     {
         p_target.GetComponent<Renderer>().enabled = true;
-        p_target.transform.SetParent(null);
-        p_target.transform.localScale = Vector3.one * 3;
-        p_target.transform.SetParent(transform);
+        //p_target.transform.SetParent(null);
+        //p_target.transform.localScale = Vector3.one * 3;
+        Vector2 __startingPosition = p_target.transform.position;
+        //p_target.transform.SetParent(transform);
         PotaTween __pTween = p_target.GetComponent<PotaTween>();
         __pTween.Reset();
-        __pTween.SetPosition(p_target.transform.localPosition, Vector2.zero, true);
+        __pTween.SetPosition(p_from, transform.position);
         __pTween.SetEaseEquation(Ease.Equation.InSine);
+        __pTween.UpdateCallback(delegate
+        {
+            //Debug.Log(new Vector2((p_target.transform.position.x - __startingPosition.x), p_target.transform.position.y - __startingPosition.y));
+            //p_target.transform.position = (Vector2)transform.position + ((__startingPosition - (Vector2)p_target.transform.position) * __pTween.Float.Value);
+            __pTween.Position.To = (Vector2)transform.position;
+        });        
         __pTween.Play(delegate 
         {
             p_target.GetComponent<Renderer>().enabled = false;
         });
     }
-
     public void GrowingAnimation(float p_delay)
     {        
         if (GetComponent<PotaTween>() == null) PotaTween.Create(gameObject);
@@ -220,16 +269,30 @@ public class PlayerBehaviour : MonoBehaviour {
         __pTween.SetScale(transform.localScale, Vector3.one*(capturedPlayersStack.Count+1)*3);
         __pTween.SetEaseEquation(Ease.Equation.OutElastic);
         __pTween.SetDelay(p_delay);
-        __pTween.Play();
+        __pTween.Play(delegate 
+        {
+            UpdateHookPivots();
+        });
     }
 
     public GameObject RemoveParticleFromBlob()
     {
-        return capturedPlayersStack.Pop();
+        GameObject __tempObject = capturedPlayersStack[capturedPlayersStack.Count - 1];
+        __tempObject.transform.position = transform.position;
+        capturedPlayersStack.RemoveAt(capturedPlayersStack.Count - 1);
+        return __tempObject;
     }
     public char RemoveInputFromBlob()
     {
-        return capturedInputsStack.Pop();
+        char __tempInput = capturedInputsStack[capturedInputsStack.Count - 1];
+        capturedInputsStack.RemoveAt(capturedInputsStack.Count - 1);
+        return __tempInput;
+    }
+    public GameObject RemoveHookPivotFromBlob()
+    {
+        GameObject __tempPivot = hookPivots[hookPivots.Count - 1];
+        hookPivots.RemoveAt(hookPivots.Count - 1);
+        return __tempPivot;
     }
 
     public void CleanCapturedPlayer(GameObject p_captured)
@@ -238,11 +301,11 @@ public class PlayerBehaviour : MonoBehaviour {
         Destroy(p_captured.GetComponent<Rigidbody2D>());
         Destroy(p_captured.GetComponent<Collider2D>());
         p_captured.GetComponent<Renderer>().enabled = false;
-        Transform[] __children = p_captured.transform.GetComponentsInChildren<Transform>();
-        for (int i = 0; i < __children.Length; i++)
-        {
-            if(__children[i].gameObject != p_captured.gameObject) Destroy(__children[i].gameObject);
-        }
+        //Transform[] __children = p_captured.transform.GetComponentsInChildren<Transform>();
+        //for (int i = 0; i < __children.Length; i++)
+        //{
+        //    if(__children[i].gameObject != p_captured.gameObject) Destroy(__children[i].gameObject);
+        //}
     }
 
     #region Utility Methods
