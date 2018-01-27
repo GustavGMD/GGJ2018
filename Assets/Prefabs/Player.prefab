@@ -41,7 +41,7 @@ GameObject:
   - component: {fileID: 114062164258205296}
   m_Layer: 0
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -102,7 +102,7 @@ CircleCollider2D:
   m_Enabled: 1
   m_Density: 1
   m_Material: {fileID: 0}
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
@@ -119,12 +119,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff78ec3eced1b6748ba603175a45db82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hookPivot: {fileID: 1619189848552024}
+  actionButton: 97
+  hookReference: {fileID: 1290491180801500, guid: 2ac74b2aaad0de540b5cbe0f4a54ad1d,
+    type: 2}
   movementAccelerationVector: {x: 0, y: 0}
   movementAccelerationScale: 0.5
   maxMovementVelocityMagnitude: 2
   movementDirectionChangeMaximumWaitingTime: 1
   rotationAccelerationValue: 1
-  rotationAccelerationScale: 60
+  rotationAccelerationScale: 180
   maxRotationVelocityValue: 120
   rotationDirectionChangeMaximumWaitingTime: 5
 --- !u!212 &212428812143651388

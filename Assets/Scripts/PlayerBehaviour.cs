@@ -10,6 +10,7 @@ public class PlayerBehaviour : MonoBehaviour {
     #region Public Attributes
     public GameObject hookPivot;
     public char actionButton;
+    public GameObject hookReference;
 
     //A aceleração é definida como uma direção em que se dará o movimento
     public Vector2 movementAccelerationVector;
@@ -22,6 +23,9 @@ public class PlayerBehaviour : MonoBehaviour {
     public float rotationAccelerationScale = 10;
     public float maxRotationVelocityValue;
     public float rotationDirectionChangeMaximumWaitingTime = 1;
+
+    public bool autonomous = true;
+    public int blobSize = 1;
     #endregion
 
     #region Private Attributes
@@ -50,8 +54,11 @@ public class PlayerBehaviour : MonoBehaviour {
         {
             LaunchHook();
         }
-        MovementBehaviour();
-        RotationBehaviour();
+        if (autonomous)
+        {
+            MovementBehaviour();
+            RotationBehaviour();
+        }
     }
 
     /// <summary>
@@ -117,7 +124,7 @@ public class PlayerBehaviour : MonoBehaviour {
     {
         yield return new WaitForSeconds(UnityEngine.Random.Range(2, rotationDirectionChangeMaximumWaitingTime));
         RandomRotation();
-        Debug.Log("Changed Rotation Direction");
+        //Debug.Log("Changed Rotation Direction");
         StartCoroutine(RotationDirectionChange());
     }
 
@@ -132,6 +139,28 @@ public class PlayerBehaviour : MonoBehaviour {
     }
 
     public void LaunchHook()
+    {
+        //inicia instanciando um Hook e inicializando seus atributos
+        GameObject __tempHook = Instantiate(hookReference, hookPivot.GetComponent<Transform>().position, GetComponent<Transform>().rotation, GetComponent<Transform>());
+        Vector2 __currentRotation = new Vector2(Mathf.Cos(GetComponent<Transform>().eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(GetComponent<Transform>().eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
+        __tempHook.GetComponent<HookBehaviour>().velocity = __currentRotation;
+        __tempHook.GetComponent<HookBehaviour>().maxDistance = 3;
+        __tempHook.GetComponent<HookBehaviour>().onFinished += delegate
+        {
+            __tempHook.SetActive(false);
+        };
+        __tempHook.GetComponent<HookBehaviour>().onEnemyCollision += delegate(PlayerBehaviour p_other)
+        {
+            if (p_other != this)
+            {
+                Debug.Log("Entrei em player");
+                p_other.autonomous = false;
+                p_other.GetComponent<Transform>().parent = GetComponent<Transform>();
+                blobSize++;
+            }
+        };
+    }
+    public void BlobJoinAnimation()
     {
 
     }
