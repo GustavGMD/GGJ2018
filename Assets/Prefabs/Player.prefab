@@ -35,6 +35,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4759415800894660}
   - component: {fileID: 212428812143651388}
+  - component: {fileID: 114780768323442738}
   m_Layer: 8
   m_Name: HookSpawnPivot
   m_TagString: Untagged
@@ -164,6 +165,20 @@ MonoBehaviour:
   capturedPlayersStack:
   - {fileID: 1864598009213716}
   capturedInputsStack: 6100
+--- !u!114 &114780768323442738
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1619189848552024}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b78c0f8b9201734eb479984e7896fc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cooldown: 1.5
+  readyToFire: 1
+  count: 0
 --- !u!212 &212428812143651388
 SpriteRenderer:
   m_ObjectHideFlags: 1
