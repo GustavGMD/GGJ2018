@@ -31,6 +31,7 @@ public class PlayerBehaviour : MonoBehaviour {
     #region Private Attributes
     Rigidbody2D _rigidbody2D;
     Vector2 _levelBoundaries;
+    //float hookPivotTrueScale = 0.5f;
     #endregion
 
     // Use this for initialization
@@ -48,7 +49,13 @@ public class PlayerBehaviour : MonoBehaviour {
 
         StartCoroutine(MovementDirectionChange());
         StartCoroutine(RotationDirectionChange());
-	}
+
+        GetComponent<Rigidbody2D>().centerOfMass = GetComponent<CircleCollider2D>().offset;
+        for (int i = 0; i < hookPivots.Count; i++)
+        {
+            hookPivots[i].GetComponent<HookController>().onAttackHit += OnAttackHitMethod;
+        }
+    }
 	
 	// Update is called once per frame
 	void Update ()
@@ -68,6 +75,12 @@ public class PlayerBehaviour : MonoBehaviour {
         {
             MovementBehaviour();
             RotationBehaviour();
+        }
+
+        //Condição de final de partida: um pegou todos
+        if(capturedInputsStack.Count >= 9)
+        {
+            Application.LoadLevel(2);
         }
     }
 
@@ -150,17 +163,18 @@ public class PlayerBehaviour : MonoBehaviour {
     {
         if (hookPivots[p_index].GetComponent<HookController>().readyToFire)
         {
-            hookPivots[p_index].GetComponent<HookController>().readyToFire = false;
+            hookPivots[p_index].GetComponent<HookController>().StartAttack();
             //inicia instanciando um Hook e inicializando seus atributos
-            GameObject __tempHook = Instantiate(hookReference, hookPivots[p_index].transform.position, transform.rotation);
-            Vector2 __currentRotation = new Vector2(Mathf.Cos(hookPivots[p_index].transform.parent.eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(hookPivots[p_index].transform.parent.eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
-            __tempHook.GetComponent<HookBehaviour>().velocity = __currentRotation;
-            __tempHook.GetComponent<HookBehaviour>().maxDistance = 10;
-            __tempHook.GetComponent<HookBehaviour>().onFinished += delegate
-            {
+            //GameObject __tempHook = Instantiate(hookReference, hookPivots[p_index].transform.position, transform.rotation);
+            //Vector2 __currentRotation = new Vector2(Mathf.Cos(hookPivots[p_index].transform.parent.eulerAngles.z * Mathf.Deg2Rad), Mathf.Sin(hookPivots[p_index].transform.parent.eulerAngles.z * Mathf.Deg2Rad)).normalized * 10;
+            //__tempHook.GetComponent<HookBehaviour>().velocity = __currentRotation;
+            //__tempHook.GetComponent<HookBehaviour>().maxDistance = 10;
+            //__tempHook.GetComponent<HookBehaviour>().onFinished += delegate
+            //{
             //Adicionar um Cooldown no disparo do Hook e criar uma pool de Hooks a serem usados e reutilizados
-            __tempHook.SetActive(false);
-            };
+            //__tempHook.SetActive(false);
+            //};
+            /**
             __tempHook.GetComponent<HookBehaviour>().onEnemyCollision += delegate (PlayerBehaviour p_other)
             {
                 if (p_other != this)
@@ -210,6 +224,7 @@ public class PlayerBehaviour : MonoBehaviour {
                 __tempHook.SetActive(false);
                 }
             };
+            /**/
         }
     }
     public void UpdateHookPivots()
@@ -220,7 +235,7 @@ public class PlayerBehaviour : MonoBehaviour {
             //atualiza o parent do pivot 
             hookPivots[i].transform.parent.parent = gameObject.transform;
             hookPivots[i].transform.parent.position = transform.position;
-            hookPivots[i].transform.localScale = Vector3.one/2;
+            //hookPivots[i].transform.localScale = Vector3.one/2;
             hookPivots[i].transform.parent.localScale = Vector3.one;
 
             //calcula o novo ângulo
@@ -230,7 +245,7 @@ public class PlayerBehaviour : MonoBehaviour {
             //coloca tween nos pivots, ou confere se eles já têm
             if (hookPivots[i].GetComponent<PotaTween>() == null) PotaTween.Create(hookPivots[i].gameObject);
             PotaTween __pTween = hookPivots[i].GetComponent<PotaTween>();
-            __pTween.Reset();
+            __pTween.Clear();
             __pTween.SetFloat(hookPivots[i].transform.eulerAngles.z, __targetAngle * Mathf.Rad2Deg);
             __pTween.UpdateCallback(delegate()
             {
@@ -244,13 +259,15 @@ public class PlayerBehaviour : MonoBehaviour {
 
     public void BlobJoinAnimation(GameObject p_target, Vector3 p_from)
     {
-        p_target.GetComponent<Renderer>().enabled = true;
+        //p_target.GetComponent<Renderer>().enabled = true;
+        hookPivots[hookPivots.Count - 1].GetComponent<HookController>().SetBodySprite(false);
+        p_target.GetComponent<SpriteBubbleManager>().ActivateObjects(true);
         //p_target.transform.SetParent(null);
         //p_target.transform.localScale = Vector3.one * 3;
         Vector2 __startingPosition = p_target.transform.position;
         //p_target.transform.SetParent(transform);
         PotaTween __pTween = p_target.GetComponent<PotaTween>();
-        __pTween.Reset();
+        __pTween.Clear();
         __pTween.SetPosition(p_from, transform.position);
         __pTween.SetEaseEquation(Ease.Equation.InSine);
         __pTween.UpdateCallback(delegate
@@ -261,21 +278,23 @@ public class PlayerBehaviour : MonoBehaviour {
         });        
         __pTween.Play(delegate 
         {
-            p_target.GetComponent<Renderer>().enabled = false;
+            //p_target.GetComponent<Renderer>().enabled = false;
+            hookPivots[hookPivots.Count - 1].GetComponent<HookController>().SetBodySprite(true);
+            p_target.GetComponent<SpriteBubbleManager>().ActivateObjects(false);
         });        
     }
     public void GrowingAnimation(float p_delay)
     {        
         if (GetComponent<PotaTween>() == null) PotaTween.Create(gameObject);
         PotaTween __pTween = GetComponent<PotaTween>();
-        __pTween.SetScale(transform.localScale, Vector3.one*(capturedPlayersStack.Count)*3);
+        __pTween.SetScale(transform.localScale, Vector3.one*(10+(capturedPlayersStack.Count)));
         __pTween.SetEaseEquation(Ease.Equation.OutElastic);
         __pTween.SetDelay(p_delay);
         __pTween.Play(delegate 
         {
-            //UpdateHookPivots();
+            UpdateHookPivots();
         });
-        UpdateHookPivots();
+        //UpdateHookPivots();
     }
 
     public GameObject RemoveParticleFromBlob()
@@ -295,6 +314,7 @@ public class PlayerBehaviour : MonoBehaviour {
     {
         GameObject __tempPivot = hookPivots[hookPivots.Count - 1];
         hookPivots.RemoveAt(hookPivots.Count - 1);
+        __tempPivot.GetComponent<HookController>().ResetOnAttackHit();
         return __tempPivot;
     }
 
@@ -311,6 +331,55 @@ public class PlayerBehaviour : MonoBehaviour {
         //}
     }
 
+    public void OnAttackHitMethod(PlayerBehaviour p_other)
+    {
+        if (p_other != this)
+        {
+            //atingiu um player isolado
+            if (p_other.capturedPlayersStack.Count == 1)
+            {
+                //Adiciona elementos nas stacks: Referencia ao objeto a ser animado, e referência ao Input q ele usa
+                capturedPlayersStack.Add(p_other.capturedPlayersStack[0]);
+                capturedInputsStack.Add(p_other.capturedInputsStack[0]);
+                hookPivots.Add(p_other.hookPivots[0]);
+                p_other.hookPivots[0].GetComponent<HookController>().onAttackHit += OnAttackHitMethod;
+                p_other.hookPivots[0].GetComponent<HookController>().DisableHookCollider();
+
+                //Reseta atributos do player capturado
+                CleanCapturedPlayer(p_other.gameObject);
+
+                //adiciona um componente de Tween que será usado para as animações
+                PotaTween.Create(p_other.gameObject);
+
+                //Play animations
+                BlobJoinAnimation(p_other.gameObject, p_other.transform.position);
+                GrowingAnimation(1f);
+            }
+            //atingiu um Blob
+            else
+            {
+                //A blob atingida desprende um de seus blobs: chamamos um método nela que retorna o objeto a ser manipulado, e um outro que retorna o input
+                //Pega a referência das coisas do outro
+                GameObject __tempObject = p_other.RemoveParticleFromBlob();
+                char __tempInput = p_other.RemoveInputFromBlob();
+                GameObject __tempPivot = p_other.RemoveHookPivotFromBlob();
+                capturedPlayersStack.Add(__tempObject);
+                capturedInputsStack.Add(__tempInput);
+                hookPivots.Add(__tempPivot);
+                __tempPivot.transform.parent.SetParent(transform);
+                __tempPivot.GetComponent<HookController>().onAttackHit += OnAttackHitMethod;
+                
+                //chama as animações
+                BlobJoinAnimation(__tempObject, p_other.transform.position);
+                GrowingAnimation(1);
+                p_other.GrowingAnimation(0);
+            }
+
+            //desativa pra ele não colidir com mais nada
+            //__tempHook.SetActive(false);
+        }
+    }
+
     #region Utility Methods
     /// <summary>
     /// Returns a normalized Vector2(with lenght == 1)
@@ -322,6 +391,5 @@ public class PlayerBehaviour : MonoBehaviour {
         float __angle = UnityEngine.Random.Range(0f, 1f) * 2 * Mathf.PI;
         return (new Vector2(Mathf.Cos(__angle), Mathf.Sin(__angle))).normalized;
     }
-
     #endregion
 }
